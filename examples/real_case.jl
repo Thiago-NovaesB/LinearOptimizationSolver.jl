@@ -1,5 +1,4 @@
-using JuMP, GLPK, LinearAlgebra, Random, HiGHS
-using MKL
+using JuMP, GLPK, LinearAlgebra, Random
 using LinearOptimizationSolver
 using BenchmarkTools, BenchmarkPlots, StatsPlots
 
@@ -59,8 +58,10 @@ A, b, c, n, m = build_problem(p, k)
 
 input = create(A, b, c, solver = 1, verbose=false) 
 bench1 = @benchmark output = solve(input)
-input = create(A, b, c, solver = 0, verbose=false) 
+input = create(A, b, c, solver = 1, verbose=false,crossover = true) 
 bench2 = @benchmark output = solve(input)
+input = create(A, b, c, solver = 0, verbose=false) 
+bench3 = @benchmark output = solve(input)
 
 function GLPK!(A, b, c)
     model_pl = Model(GLPK.Optimizer);
@@ -72,23 +73,11 @@ function GLPK!(A, b, c)
     optimize!(model_pl);
 end
 
-function HiGHS!(A, b, c)
-    model_pl = Model(HiGHS.Optimizer);
-    set_silent(model_pl)
-    m = size(A,1);
-    n = size(A,2) - length(b);
-    @variable(model_pl, X[1:n + m] >= 0);
-    @constraint(model_pl, A*X .== b);
-    @objective(model_pl, Max, c'X);
-    optimize!(model_pl);
-end
-
-bench3 = @benchmark GLPK!($A, $b, $c)
-bench4 = @benchmark HiGHS!($A, $b, $c)
+bench4 = @benchmark GLPK!($A, $b, $c)
 
 plotd = plot(bench1,yaxis=:log10,st=:violin)
-plot!(bench2,yaxis=:log10,st=:violin,xticks=(1:2,["IP" "Simplex"]))
-plot!(bench3,yaxis=:log10,st=:violin,xticks=(1:3,["IP" "Simplex" "GLPK"]))
-plot!(bench4,yaxis=:log10,st=:violin,xticks=(1:4,["IP" "Simplex" "GLPK" "HiGHS"]))
+plot!(bench2,yaxis=:log10,st=:violin,xticks=(1:2,["IP" "IP Crossover"]))
+plot!(bench3,yaxis=:log10,st=:violin,xticks=(1:3,["IP" "IP Crossover" "Simplex"]))
+plot!(bench4,yaxis=:log10,st=:violin,xticks=(1:4,["IP" "IP Crossover" "Simplex" "GLPK"]))
 
 savefig(plotd,"examples\\p=$(p),k=$(k).png")
